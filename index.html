@@ -206,32 +206,30 @@ select.field__input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:
 .movil-badge:hover,.movil-badge:active{background:rgba(232,125,43,.3)}
 .movil-badge__icon{font-size:14px;line-height:1}
 .movil-badge__text{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#fff;letter-spacing:.5px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* ─── Leaflet fixes ──────────────────────────────────────── */
-#mapLeaflet{width:100%;height:100%;min-height:260px}
-.leaflet-container{background:#0D1829;font-family:'Inter',sans-serif}
-.leaflet-control-zoom a{background:var(--navy);color:#fff;border-color:var(--border-d)}
-.leaflet-control-zoom a:hover{background:var(--navy-3)}
-.leaflet-control-attribution{background:rgba(10,22,40,.7)!important;color:rgba(255,255,255,.4)!important;font-size:10px}
-.leaflet-control-attribution a{color:rgba(255,255,255,.5)!important}
-.map-pulse-ring{animation:mapPulse 1.4s ease-out infinite}
-@keyframes mapPulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.2);opacity:0}}
-
-/* ─── Modal Mapa ─────────────────────────────────────────── */
+/* ─── Modal Mapa Leaflet ─────────────────────────────────── */
 .map-overlay{position:fixed;inset:0;z-index:9500;background:rgba(10,22,40,.92);display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .map-overlay.hidden{display:none}
 .map-sheet{background:var(--surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:520px;overflow:hidden;box-shadow:0 -8px 32px rgba(0,0,0,.4);display:flex;flex-direction:column;max-height:90dvh}
 .map-sheet__head{background:var(--navy);padding:14px 16px;border-bottom:2px solid var(--orange);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .map-sheet__title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:.5px;color:#fff;text-transform:uppercase}
 .map-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
-.map-iframe-wrap{flex:1;min-height:260px;overflow:hidden}
-.map-iframe-wrap iframe{width:100%;height:100%;border:none;display:block}
-.map-addr{padding:10px 16px 0;font-size:13px;color:var(--text-2);font-weight:500;min-height:36px;display:flex;align-items:center;gap:6px;flex-shrink:0}
-.map-addr__icon{color:var(--orange)}
+.map-leaflet-wrap{flex:1;min-height:260px;position:relative}
+#mapLeaflet{width:100%;height:100%;min-height:260px}
+.map-addr{padding:10px 16px 0;font-size:13px;color:var(--text-2);font-weight:500;min-height:38px;display:flex;align-items:center;gap:6px;flex-shrink:0;line-height:1.4}
 .map-actions{display:flex;gap:8px;padding:12px 16px 20px;flex-shrink:0}
 .map-btn{flex:1;padding:13px;border:none;border-radius:var(--radius);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer}
 .map-btn--cancel{background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--border)}
 .map-btn--confirm{background:var(--orange);color:#fff;box-shadow:0 4px 12px rgba(232,125,43,.3)}
+/* Leaflet overrides */
+.leaflet-container{font-family:'Inter',sans-serif}
+.leaflet-control-zoom a{background:#162B52;color:#fff;border-color:#243550}
+.leaflet-control-zoom a:hover{background:#1E3A6E}
+.leaflet-control-attribution{background:rgba(10,22,40,.65)!important;color:rgba(255,255,255,.4)!important;font-size:10px}
+.leaflet-control-attribution a{color:rgba(255,255,255,.5)!important}
+.map-dot-pulse{width:18px;height:18px;position:relative}
+.map-dot-pulse__ring{position:absolute;inset:0;border-radius:50%;background:rgba(59,130,246,.3);animation:mdPulse 1.6s ease-out infinite}
+.map-dot-pulse__core{position:absolute;inset:3px;border-radius:50%;background:#3B82F6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,.7)}
+@keyframes mdPulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(2.5);opacity:0}}
 
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -533,10 +531,10 @@ select.field__input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:
       <span class="map-sheet__title">📍 Verificar Ubicación</span>
       <button class="map-close" onclick="cerrarMapa()">✕</button>
     </div>
-    <div class="map-iframe-wrap">
+    <div class="map-leaflet-wrap">
       <div id="mapLeaflet"></div>
     </div>
-    <div class="map-addr"><span class="map-addr__icon">📌</span><span id="mapAddrText">Cargando dirección…</span></div>
+    <div class="map-addr" id="mapAddr">📌 <span id="mapAddrText">Obteniendo dirección…</span></div>
     <div class="map-actions">
       <button class="map-btn map-btn--cancel" onclick="cerrarMapa()">Cancelar</button>
       <button class="map-btn map-btn--confirm" onclick="confirmarCoordenadas()">✅ Confirmar</button>
@@ -635,7 +633,14 @@ function onSinPiquete() {
   const checked = document.getElementById('cb-sinpiq').checked;
   document.getElementById('coord-block').classList.toggle('show', checked);
   document.getElementById('req-piq').style.display = checked ? 'none' : '';
-  if (checked) document.getElementById('f-piquete').value = '';
+  if (checked) {
+    document.getElementById('f-piquete').value = '';
+    // Abrir mapa al tildar "Sin piquete"
+    abrirMapa();
+  } else {
+    // Si se destilda, cerrar el mapa si estaba abierto
+    cerrarMapa();
+  }
 }
 
 // ─── GPS ───────────────────────────────────────────────────
@@ -880,126 +885,121 @@ function switchTab(n) {
   if (n === 'hist') renderHistory();
 }
 
-// ─── Móvil ────────────────────────────────────────────────
+// ─── Móvil ────────────────────────────────────────────────────────────
 function getMovil() { try { return localStorage.getItem('piq_movil') || ''; } catch { return ''; } }
 function setMovil(v) { try { localStorage.setItem('piq_movil', v); } catch {} }
 function initMovil() {
-  const saved = getMovil();
-  const overlay = document.getElementById('movilOverlay');
+  var saved = getMovil();
   if (saved) {
-    overlay.classList.add('hidden');
+    document.getElementById('movilOverlay').classList.add('hidden');
     document.getElementById('movilBadge').textContent = saved;
   } else {
-    overlay.classList.remove('hidden');
-    setTimeout(() => { const inp = document.getElementById('movilInput'); if (inp) inp.focus(); }, 150);
+    document.getElementById('movilOverlay').classList.remove('hidden');
+    setTimeout(function() { var inp = document.getElementById('movilInput'); if (inp) inp.focus(); }, 150);
   }
 }
 function confirmarMovil() {
-  const val = document.getElementById('movilInput').value.trim();
+  var val = document.getElementById('movilInput').value.trim();
   if (!val) {
-    const inp = document.getElementById('movilInput');
+    var inp = document.getElementById('movilInput');
     inp.style.borderColor = 'var(--red)';
-    setTimeout(() => { inp.style.borderColor = ''; }, 1200);
+    setTimeout(function() { inp.style.borderColor = ''; }, 1200);
     return;
   }
   setMovil(val);
   document.getElementById('movilOverlay').classList.add('hidden');
   document.getElementById('movilBadge').textContent = val;
-  toast('\u{1F697} Móvil: ' + val, 'ok');
+  toast('🚗 Móvil: ' + val, 'ok');
 }
 function cambiarMovil() {
   document.getElementById('movilInput').value = getMovil();
   document.getElementById('movilOverlay').classList.remove('hidden');
-  setTimeout(() => { const inp = document.getElementById('movilInput'); inp.focus(); inp.select(); }, 80);
+  setTimeout(function() { var i = document.getElementById('movilInput'); i.focus(); i.select(); }, 80);
 }
 
-// ─── Mapa GPS (Leaflet) ────────────────────────────────────
-let _pendingLat = '', _pendingLon = '', _pendingAddr = null;
-let _leafletMap = null, _leafletMarker = null;
+// ─── Mapa GPS (Leaflet + OSM) ─────────────────────────────────────────
+var _pendingLat = '', _pendingLon = '', _pendingAddr = null;
+var _lmap = null, _lmarker = null;
 
-function _initLeafletMap() {
-  if (_leafletMap) return;
-  _leafletMap = L.map('mapLeaflet', { zoomControl: true, attributionControl: true });
-  // Dark tiles (CartoDB Dark Matter)
+function _initMap() {
+  if (_lmap) return;
+  _lmap = L.map('mapLeaflet', { zoomControl: true, attributionControl: true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
-  }).addTo(_leafletMap);
+  }).addTo(_lmap);
 }
 
-// Marcador personalizado (punto azul con anillo)
-function _makePulseIcon() {
+function _pulseIcon() {
   return L.divIcon({
     className: '',
-    html: '<div style="position:relative;width:20px;height:20px">' +
-          '<div class="map-pulse-ring" style="position:absolute;inset:0;border-radius:50%;background:rgba(59,130,246,.35)"></div>' +
-          '<div style="position:absolute;inset:3px;border-radius:50%;background:#3B82F6;border:2.5px solid #fff;box-shadow:0 0 8px rgba(59,130,246,.8)"></div>' +
-          '</div>',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
+    html: '<div class="map-dot-pulse"><div class="map-dot-pulse__ring"></div><div class="map-dot-pulse__core"></div></div>',
+    iconSize: [18, 18], iconAnchor: [9, 9]
   });
 }
 
 function abrirMapa() {
   if (!navigator.geolocation) { toast('Geolocalización no disponible', 'err'); return; }
-  const btn = document.getElementById('gpsBtn');
+  var btn = document.getElementById('gpsBtn');
   btn.textContent = '⏳ Obteniendo GPS…'; btn.disabled = true;
   navigator.geolocation.getCurrentPosition(
-    pos => {
+    function(pos) {
       btn.textContent = '📍 Obtener ubicación GPS'; btn.disabled = false;
       _pendingLat = pos.coords.latitude.toFixed(6);
       _pendingLon = pos.coords.longitude.toFixed(6);
       mostrarMapa(_pendingLat, _pendingLon);
     },
-    err => {
+    function(err) {
       btn.textContent = '📍 Obtener ubicación GPS'; btn.disabled = false;
-      const latVal = document.getElementById('f-lat').value.trim();
-      const lonVal = document.getElementById('f-lon').value.trim();
-      if (latVal && lonVal && !isNaN(latVal) && !isNaN(lonVal)) {
-        _pendingLat = latVal; _pendingLon = lonVal;
-        mostrarMapa(_pendingLat, _pendingLon);
-      } else {
-        toast('GPS: ' + err.message, 'err');
-      }
+      var latV = document.getElementById('f-lat').value.trim();
+      var lonV = document.getElementById('f-lon').value.trim();
+      if (latV && lonV && !isNaN(latV) && !isNaN(lonV)) {
+        _pendingLat = latV; _pendingLon = lonV; mostrarMapa(latV, lonV);
+      } else { toast('GPS: ' + err.message, 'err'); }
     },
     { enableHighAccuracy: true, timeout: 12000 }
   );
 }
+
 function mostrarMapa(lat, lon) {
-  const overlay = document.getElementById('mapOverlay');
-  const addrEl  = document.getElementById('mapAddrText');
-  addrEl.textContent = 'Cargando dirección…';
+  var overlay = document.getElementById('mapOverlay');
+  document.getElementById('mapAddrText').textContent = 'Obteniendo dirección…';
   _pendingAddr = null;
-  const mapUrl = 'https://www.openstreetmap.org/export/embed.html?bbox=' +
-    (parseFloat(lon) - .006) + ',' + (parseFloat(lat) - .005) + ',' +
-    (parseFloat(lon) + .006) + ',' + (parseFloat(lat) + .005) +
-    '&layer=mapnik&marker=' + lat + ',' + lon;
-  document.getElementById('mapIframe').src = mapUrl;
   overlay.classList.remove('hidden');
-  // Geocodificación inversa (Nominatim / OSM)
+  // Leaflet necesita que el contenedor sea visible antes de inicializar
+  setTimeout(function() {
+    _initMap();
+    var ll = [parseFloat(lat), parseFloat(lon)];
+    _lmap.setView(ll, 17);
+    if (_lmarker) { _lmarker.setLatLng(ll); }
+    else { _lmarker = L.marker(ll, { icon: _pulseIcon() }).addTo(_lmap); }
+    _lmap.invalidateSize();
+  }, 50);
+  // Geocodificación inversa
   fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon + '&format=json&addressdetails=1', {
-    headers: { 'Accept-Language': 'es', 'User-Agent': 'InspeccionColumnas/1.0' }
+    headers: { 'Accept-Language': 'es' }
   })
-  .then(r => r.json())
-  .then(data => {
-    const a = data.address || {};
-    const road   = a.road || a.pedestrian || a.path || a.street || '';
-    const number = a.house_number || '';
-    const suburb = a.suburb || a.neighbourhood || a.city_district || '';
-    const city   = a.city || a.town || a.village || '';
-    const parts  = [road, number, suburb, city].filter(Boolean);
-    _pendingAddr = { road, number, display: parts.join(', ') || data.display_name || (lat + ', ' + lon) };
-    addrEl.textContent = '📍 ' + _pendingAddr.display;
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var a = data.address || {};
+    var road   = a.road || a.pedestrian || a.path || a.street || '';
+    var number = a.house_number || '';
+    var suburb = a.suburb || a.neighbourhood || a.city_district || '';
+    var city   = a.city || a.town || a.village || '';
+    var parts  = [road, number, suburb, city].filter(Boolean);
+    _pendingAddr = { road: road, number: number, display: parts.join(', ') || data.display_name || (lat + ', ' + lon) };
+    document.getElementById('mapAddrText').textContent = _pendingAddr.display;
   })
-  .catch(() => { addrEl.textContent = lat + ', ' + lon; });
+  .catch(function() { document.getElementById('mapAddrText').textContent = lat + ', ' + lon; });
 }
+
 function confirmarCoordenadas() {
   document.getElementById('f-lat').value = _pendingLat;
   document.getElementById('f-lon').value = _pendingLon;
   cerrarMapa();
   if (_pendingAddr && _pendingAddr.road) {
-    const msg = '📍 Dirección detectada:\n' + _pendingAddr.display +
-                '\n\n¿Querés insertar la calle y altura geolocalizada?';
+    var msg = '📍 Dirección detectada:\n' + _pendingAddr.display +
+              '\n\n¿Querés insertar la calle y altura geolocalizada?';
     if (confirm(msg)) {
       if (_pendingAddr.road)   document.getElementById('f-calle').value  = _pendingAddr.road;
       if (_pendingAddr.number) document.getElementById('f-altura').value = _pendingAddr.number;
@@ -1012,23 +1012,24 @@ function confirmarCoordenadas() {
     toast('✅ Coordenadas: ' + _pendingLat + ', ' + _pendingLon, 'ok');
   }
 }
+
 function cerrarMapa() {
   document.getElementById('mapOverlay').classList.add('hidden');
   _pendingAddr = null;
 }
-// Coordenadas ingresadas manualmente → abrir mapa al escribir ambas
-(function () {
-  function onManualCoord() {
-    const lat = document.getElementById('f-lat').value.trim();
-    const lon = document.getElementById('f-lon').value.trim();
+
+// Coordenadas manuales -> abrir mapa al completar ambos campos
+(function() {
+  function chkManual() {
+    var lat = document.getElementById('f-lat').value.trim();
+    var lon = document.getElementById('f-lon').value.trim();
     if (lat && lon && !isNaN(lat) && !isNaN(lon)) {
-      _pendingLat = lat; _pendingLon = lon;
-      mostrarMapa(lat, lon);
+      _pendingLat = lat; _pendingLon = lon; mostrarMapa(lat, lon);
     }
   }
-  ['f-lat', 'f-lon'].forEach(function (id) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('change', onManualCoord);
+  ['f-lat','f-lon'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', chkManual);
   });
 })();
 
