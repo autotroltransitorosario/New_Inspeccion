@@ -1000,23 +1000,30 @@ function mostrarMapa(lat, lon) {
 }
 
 function confirmarCoordenadas() {
-  document.getElementById('f-lat').value = _pendingLat;
-  document.getElementById('f-lon').value = _pendingLon;
+  // Guardar antes de cerrar (cerrarMapa pone _pendingAddr = null)
+  var lat  = _pendingLat;
+  var lon  = _pendingLon;
+  var addr = _pendingAddr ? { road: _pendingAddr.road, number: _pendingAddr.number, display: _pendingAddr.display } : null;
+  document.getElementById('f-lat').value = lat;
+  document.getElementById('f-lon').value = lon;
   cerrarMapa();
-  if (_pendingAddr && _pendingAddr.road) {
-    var msg = '📍 Dirección detectada:\n' + _pendingAddr.display +
-              '\n\n¿Querés insertar la calle y altura geolocalizada?';
-    if (confirm(msg)) {
-      if (_pendingAddr.road)   document.getElementById('f-calle').value  = _pendingAddr.road;
-      if (_pendingAddr.number) document.getElementById('f-altura').value = _pendingAddr.number;
-      updateRepHint();
-      toast('✅ Calle y altura cargadas desde GPS', 'ok');
+  // Timeout para que el modal termine de cerrarse antes del confirm
+  setTimeout(function() {
+    if (addr && addr.road) {
+      var msg = '📍 Dirección detectada:\n' + addr.display +
+                '\n\n¿Querés insertar la calle y altura geolocalizada?';
+      if (confirm(msg)) {
+        if (addr.road)   document.getElementById('f-calle').value  = addr.road;
+        if (addr.number) document.getElementById('f-altura').value = addr.number;
+        updateRepHint();
+        toast('✅ Calle y altura cargadas desde GPS', 'ok');
+      } else {
+        toast('✅ Coordenadas guardadas', 'ok');
+      }
     } else {
-      toast('✅ Coordenadas guardadas', 'ok');
+      toast('✅ Coordenadas: ' + lat + ', ' + lon, 'ok');
     }
-  } else {
-    toast('✅ Coordenadas: ' + _pendingLat + ', ' + _pendingLon, 'ok');
-  }
+  }, 150);
 }
 
 function cerrarMapa() {
